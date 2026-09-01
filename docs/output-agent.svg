@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1208" height="520" viewBox="0 0 1208 520" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13">
+  <rect width="1208" height="520" rx="10" fill="#16110e"/>
+  <rect width="1208" height="32" rx="10" fill="#211a15"/>
+  <rect y="22" width="1208" height="14" fill="#211a15"/>
+  <circle cx="22" cy="16" r="5.5" fill="#e0654780"/>
+  <circle cx="42" cy="16" r="5.5" fill="#d8a54480"/>
+  <circle cx="62" cy="16" r="5.5" fill="#95b26880"/>
+  <text x="604" y="20" text-anchor="middle" fill="#8a7d6d" font-size="12">rotgauge --agent</text>
+<text x="20" y="60.3" xml:space="preserve" textLength="296" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">### Context-rot smoke test (rotgauge)</tspan></text>
+<text x="20" y="98.3" xml:space="preserve" textLength="280" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| File | Score | Dominant signals |</tspan></text>
+<text x="20" y="117.3" xml:space="preserve" textLength="160" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| --- | ---: | --- |</tspan></text>
+<text x="20" y="136.3" xml:space="preserve" textLength="624" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/game.js | 62 | module mutable state (15× typical), function count/size |</tspan></text>
+<text x="20" y="155.3" xml:space="preserve" textLength="632" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/waves.js | 35 | module mutable state (10× typical), function count/size |</tspan></text>
+<text x="20" y="174.3" xml:space="preserve" textLength="680" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/renderer.js | 12 | instance state (this.*) (14× typical), function count/size |</tspan></text>
+<text x="20" y="193.3" xml:space="preserve" textLength="400" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| index.html | 7 | fan-out, module mutable state |</tspan></text>
+<text x="20" y="212.3" xml:space="preserve" textLength="312" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/input.js | 6 | nesting, fan-out |</tspan></text>
+<text x="20" y="231.3" xml:space="preserve" textLength="312" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/utils.js | 4 | nesting, exports |</tspan></text>
+<text x="20" y="269.3" xml:space="preserve" textLength="224" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">**Context docs (markdown):**</tspan></text>
+<text x="20" y="307.3" xml:space="preserve" textLength="200" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| Doc | Score | Signals |</tspan></text>
+<text x="20" y="326.3" xml:space="preserve" textLength="160" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| --- | ---: | --- |</tspan></text>
+<text x="20" y="345.3" xml:space="preserve" textLength="864" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| docs/design.md | 13 | auto-loaded every turn (~79 tokens), 2 stale refs (1 line anchor past end of file) |</tspan></text>
+<text x="20" y="364.3" xml:space="preserve" textLength="544" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| CLAUDE.md | 7 | auto-loaded every turn (~84 tokens), 1 stale ref |</tspan></text>
+<text x="20" y="402.3" xml:space="preserve" textLength="1168" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">**Git history:** `git log -20` is about 329 tokens per glance; median commit message 6 tokens; 33% of the last 6 commits touch &lt;5 lines (score 13)</tspan></text>
+<text x="20" y="440.3" xml:space="preserve" textLength="912" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">- Scores estimate how hard a file is to edit correctly, not quality. 60+ or rising means look first, not refactor.</tspan></text>
+<text x="20" y="459.3" xml:space="preserve" textLength="776" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">- Module, closure, and instance mutable state (MLets, CLets, ThisM) is where edits go wrong most.</tspan></text>
+<text x="20" y="478.3" xml:space="preserve" textLength="864" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">- Auto-loaded docs cost their tokens every turn. Keep them to what the code cannot show, and fix stale refs.</tspan></text>
+</svg>

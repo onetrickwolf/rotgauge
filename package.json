@@ -1,0 +1,44 @@
+{
+  "name": "rotgauge",
+  "version": "0.7.0",
+  "author": "Brent Conn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onetrickwolf/rotgauge.git"
+  },
+  "bin": {
+    "rotgauge": "./rotgauge.js"
+  },
+  "bugs": {
+    "url": "https://github.com/onetrickwolf/rotgauge/issues"
+  },
+  "description": "Context-rot smoke test — scores how hard each file is for an AI to edit correctly",
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.0.0"
+  },
+  "files": [
+    "rotgauge.js",
+    "src/"
+  ],
+  "homepage": "https://github.com/onetrickwolf/rotgauge#readme",
+  "keywords": [
+    "complexity",
+    "ai",
+    "context-rot",
+    "static-analysis",
+    "smoke-test",
+    "claude-code",
+    "agents"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "bun test",
+    "check": "bun rotgauge.js --check 5 --quiet",
+    "screenshots": "bun scripts/screenshots.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "@babel/parser": "^8.0.4"
+  }
+}

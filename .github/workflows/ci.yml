@@ -1,0 +1,18 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      # rotgauge gates itself: a file that rots more than +5 over the committed
+      # baseline fails the build. Re-run --save-baseline for deliberate moves.
+      - run: bun rotgauge.js --check 5 --quiet
+      # The same gate under Node: rotgauge has no runtime-specific code paths.
+      - run: node --version && node rotgauge.js --check 5 --quiet

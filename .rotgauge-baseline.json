@@ -1,0 +1,41 @@
+{
+  "src/metrics.js": {
+    "score": 42
+  },
+  "src/cli.js": {
+    "score": 41
+  },
+  "src/output.js": {
+    "score": 41
+  },
+  "src/docs.js": {
+    "score": 28
+  },
+  "src/scan.js": {
+    "score": 18
+  },
+  "src/config.js": {
+    "score": 14
+  },
+  "src/score.js": {
+    "score": 14
+  },
+  "src/history.js": {
+    "score": 13
+  },
+  "scripts/screenshots.js": {
+    "score": 11
+  },
+  "src/files.js": {
+    "score": 9
+  },
+  "rotgauge.js": {
+    "score": 6
+  },
+  "README.md": {
+    "score": 6
+  },
+  "CHANGELOG.md": {
+    "score": 3
+  }
+}
