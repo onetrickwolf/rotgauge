@@ -1,5 +1,9 @@
 # rotgauge
 
+**why**
+
+I am asked to consult/fix a lot on AI-assisted code bases that have hit context collapse which basically means they vibe coded so hard that the code base is too messed up to add any new features but also too messed up to fix the messed up code base to be able to add more features so a human has to usually come in and fix it. I made this tool to help prevent/track context rot that leads to this context collapse. It's very tuned to the projects I worked on, but so many people ask me about it that I am publishing it for reference. It is not really in a state to be used generally, but if you have a TS/JS project it might work. The concepts though I think are pretty solid, and this could be forked/applied to many code bases and projects. If you are in an organization that uses too much AI too fast and your token usage is spiking and time to feature shrinking, I would really highly recommend adding something like this.
+
 **A context-rot smoke test for AI-assisted codebases.**
 
 rotgauge scores how hard each file is for an AI (or anyone) to edit correctly. Not how "good" the code is. It's deliberately cheap: one pass, one dependency (Babel's parser), no API calls. Run it constantly, the way you'd glance at a gauge. A high or rising score means *look here before it collapses your context*, not *refactor now*.
