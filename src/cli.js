@@ -6,6 +6,7 @@ import { BASELINE_FILE, CONFIG_FILE, splitGlobs, loadConfig, makeExemptMatcher }
 import { SKIP_DIRS, DOC_EXT_RE, expandPaths } from './files.js';
 import { scanFiles } from './scan.js';
 import { scanDocs } from './docs.js';
+import { applyDocBudgets, docBudgetFailures } from './budgets.js';
 import { analyzeGitHistory, HISTORY_WINDOW, GLANCE_COMMITS, TINY_COMMIT_LINES } from './history.js';
 import { CLOSURE_FN_LINES } from './metrics.js';
 import {
@@ -78,10 +79,17 @@ Flags:
   -h, --help         Show this help
 
 Config: a ${CONFIG_FILE} in the working directory carries the same exemptions
-(unioned with the flag) plus directory names to skip on top of the built-in
-list (node_modules, dist, build, test, ...), so long lists stay off the
-command line:
-  { "exempt": ["module_bindings/**", "*.generated.ts"], "skip": ["archive"] }
+(unioned with the flag), directory names to skip on top of the built-in list
+(node_modules, dist, build, test, ...), and doc budgets, so none of it lives
+on the command line:
+  { "exempt": ["module_bindings/**", "*.generated.ts"], "skip": ["archive"],
+    "docs": { "allow": ["README.md", "docs/**", "**/README.md"],
+              "budgets": [{ "match": "AGENTS.md", "tokens": 1500 }, { "match": "**/README.md", "tokens": 900 }],
+              "totalTokens": 12000 } }
+Doc budgets are absolute caps --check enforces on top of the delta: a doc
+outside "allow", over the first "budgets" pattern it matches, or a scanned
+set over "totalTokens" fails, new file or not. The docs table gains a Budget
+column when any are set.
 Globs: * within a path segment, ** across segments, ? one character. A pattern
 matches at any depth unless it starts with / (anchored to the working directory).
 Naming a skipped directory as a path still scans it.
@@ -151,6 +159,7 @@ export function main() {
   const filePaths = expandPaths(opts.paths, cwd, skipDirs);
   const results = scanFiles(filePaths.filter((p) => !DOC_EXT_RE.test(p)), cwd);
   const docResults = opts.docs ? scanDocs(filePaths.filter((p) => DOC_EXT_RE.test(p)), cwd) : [];
+  const budgets = applyDocBudgets(docResults, config.docs);
   const history = opts.history ? analyzeGitHistory(cwd) : null;
   const everything = [...results, ...docResults];
 
@@ -197,7 +206,7 @@ export function main() {
     if (results.length > 0) printTable(results, baseline);
     if (docResults.length > 0) {
       if (results.length > 0) console.log('');
-      printDocsTable(docResults, baseline);
+      printDocsTable(docResults, baseline, budgets);
     }
     if (history) {
       if (results.length > 0 || docResults.length > 0) console.log('');
@@ -231,8 +240,15 @@ export function main() {
     }
     // Exemptions are never silent: name what the gate let through.
     for (const line of exemptOver) note(line);
-    if (failures > 0) {
-      console.error(`\n${failures} file(s) exceeded the delta threshold of ${opts.checkThreshold}.`);
+    // Budgets are absolute: they catch the new doc the delta check cannot see.
+    const budgetReport = docBudgetFailures(docResults, budgets, isExempt);
+    for (const line of budgetReport.exempt) note(line);
+    for (const line of budgetReport.failures) console.error(line);
+    if (failures > 0 || budgetReport.failures.length > 0) {
+      const parts = [];
+      if (failures > 0) parts.push(`${failures} file(s) exceeded the delta threshold of ${opts.checkThreshold}`);
+      if (budgetReport.failures.length > 0) parts.push(`${budgetReport.failures.length} doc budget failure(s)`);
+      console.error(`\n${parts.join('; ')}.`);
       process.exit(1);
     }
     const checked = everything.length - exemptCount;

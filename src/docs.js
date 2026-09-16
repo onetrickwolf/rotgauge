@@ -171,6 +171,8 @@ export function docSignals(d) {
     sig.push(`${d.staleRefs} stale ref${d.staleRefs === 1 ? '' : 's'}${detail}`);
   }
   if (d.mirrorRefs > 15) sig.push(`mirrors ${d.mirrorRefs} source files`);
+  if (d.allowed === false) sig.push('outside the allowed doc locations');
+  if (d.overBudget) sig.push(`over its ${d.budgetTokens}-token budget`);
   // Advisory, not scored: a `file.ts:120` anchor silently rots the moment
   // anything above it shifts, and only the past-EOF case is provable. A doc
   // leaning on many of them is quietly drifting even when Stale reads 0.

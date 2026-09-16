@@ -82,6 +82,33 @@ rotgauge never descends into dependency, build, or test directories (`node_modul
 
 Naming a skipped directory on the command line still scans it (`rotgauge test/`).
 
+## Doc budgets
+
+The delta gate compares a file with its baseline entry, and a new file has none, so a
+repo can rot by accretion: forty new report files, each small, each new. Budgets are
+absolute caps in `.rotgauge.json` that `--check` enforces on top of the delta:
+
+```json
+{
+  "docs": {
+    "allow": ["README.md", "AGENTS.md", "docs/**", "**/README.md"],
+    "budgets": [
+      { "match": "AGENTS.md", "tokens": 1500 },
+      { "match": "docs/decisions/*.md", "tokens": 600 },
+      { "match": "**/README.md", "tokens": 900 }
+    ],
+    "totalTokens": 12000
+  }
+}
+```
+
+Every key is optional. A scanned doc outside `allow` fails; a doc over the first
+`budgets` pattern it matches fails, naming the cap; a scanned set over `totalTokens`
+fails. The docs table gains a Budget column, `--json` entries carry `allowed`,
+`budgetTokens` and `overBudget`, and `--agent` names the findings. Exempt docs are not
+gated but are still named, and still count toward the total. Raising a cap is an edit
+to the config that a reviewer can see, not a rebaseline.
+
 ## What it measures
 
 Scans `.js .jsx .ts .tsx .mjs .cjs .mts .cts .html` (inline scripts, styles, and handlers in HTML), plus `.md` docs (below). Code analysis runs on the AST of the file as written. TypeScript is parsed directly, types included, so nothing is transpiled and every number describes the source you actually edit.

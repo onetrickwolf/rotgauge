@@ -65,6 +65,11 @@ export function toDocJSONEntry(r, baseline) {
     autoLoaded: r.autoLoaded,
     score: r.score,
   };
+  if (r.budgetTokens !== undefined) {
+    entry.allowed = r.allowed;
+    entry.budgetTokens = r.budgetTokens;
+    entry.overBudget = r.overBudget;
+  }
   return withBaseline(entry, r.name, r.score, baseline);
 }
 
@@ -242,8 +247,9 @@ export function printTable(results, baseline) {
   console.log(`\n ${results.length} files analyzed. Score is avg, FnCplx/Nest/MaxP/DsW are max across all files.`);
 }
 
-export function printDocsTable(docResults, baseline) {
+export function printDocsTable(docResults, baseline, budgets = null) {
   const headers = ['Doc', 'LOC', 'FenceL', 'Words', '~Tokens', 'Refs', 'Stale', 'Mirror', 'Auto', 'Score'];
+  if (budgets) headers.splice(5, 0, 'Budget');
   if (baseline) headers.push('Delta');
 
   const rows = docResults.map((r) => {
@@ -251,6 +257,11 @@ export function printDocsTable(docResults, baseline) {
       r.name, r.loc, r.fenceLOC, r.words, r.tokens,
       r.refs, r.staleRefs, r.mirrorRefs, r.autoLoaded ? 'yes' : '', r.score,
     ];
+    if (budgets) {
+      // Over a cap or outside the allowed locations reads as a failure the way Stale does.
+      const cap = r.budgetTokens === null ? '' : String(r.budgetTokens);
+      row.splice(5, 0, !r.allowed ? 'not allowed' : r.overBudget ? `${cap} !` : cap);
+    }
     if (baseline) {
       const base = baseline[r.name];
       if (!base) row.push('new');
@@ -269,6 +280,7 @@ export function printDocsTable(docResults, baseline) {
 
   const scoreCol = headers.indexOf('Score');
   const staleCol = headers.indexOf('Stale');
+  const budgetCol = budgets ? headers.indexOf('Budget') : -1;
   const deltaCol = baseline ? headers.indexOf('Delta') : -1;
 
   function formatRow(values, colorize) {
@@ -279,6 +291,7 @@ export function printDocsTable(docResults, baseline) {
         if (!colorize) return padded;
         if (i === scoreCol && s !== '') return paint(padded, scoreCode(Number(s)));
         if (i === staleCol && Number(s) > 0) return paint(padded, '31');
+        if (i === budgetCol && (s.endsWith('!') || s === 'not allowed')) return paint(padded, '31');
         if (i === deltaCol && s !== '') return paint(padded, deltaCode(s));
         return padded;
       })
@@ -291,6 +304,10 @@ export function printDocsTable(docResults, baseline) {
   console.log(rule);
   for (const row of rows) console.log(formatRow(row, true));
   console.log(rule);
+  if (budgets && budgets.totalBudget !== null) {
+    const line = ` Docs total ~${budgets.totalTokens} tokens of the ${budgets.totalBudget}-token budget`;
+    console.log(budgets.overTotal ? paint(line + ' !', '31') : line);
+  }
 }
 
 export function printHistoryTable(h) {

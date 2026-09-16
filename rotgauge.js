@@ -8,8 +8,8 @@
 // This file is the executable and the whole public module surface. The work
 // lives in src/, one module per concern: cli (flags and the run), config
 // (.rotgauge.json), files (discovery), metrics (the AST walk), score, scan
-// (the code pipeline), docs (markdown context weight), history (git glance
-// cost), output (tables, --agent, --json).
+// (the code pipeline), docs (markdown context weight), budgets (doc caps),
+// history (git glance cost), output (tables, --agent, --json).
 
 import { realpathSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -22,6 +22,7 @@ export * from './src/metrics.js';
 export * from './src/score.js';
 export * from './src/scan.js';
 export * from './src/docs.js';
+export * from './src/budgets.js';
 export * from './src/history.js';
 export * from './src/output.js';
 

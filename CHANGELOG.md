@@ -2,6 +2,10 @@
 
 Score weights can change between minor versions. Re-run `--save-baseline` after upgrading so `--check` deltas stay meaningful.
 
+## 0.8.0 (2026-09-16)
+
+- `.rotgauge.json` gains `"docs"`: absolute doc budgets that `--check` enforces on top of the delta. `allow` globs say where docs may live, `budgets` cap estimated tokens per glob (first match wins), `totalTokens` caps the scanned set. A new doc has no baseline entry and slipped past the delta gate; a cap catches it. The docs table gains a Budget column, `--json` carries `allowed` / `budgetTokens` / `overBudget`, `--agent` names the findings, and exempt docs are named rather than gated. Scores are unchanged; no rebaseline needed.
+
 ## 0.7.0 (2026-09-01)
 
 First public release.
