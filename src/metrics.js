@@ -112,6 +112,7 @@ export function emptyMetrics() {
     closureLets: 0, closureMutations: 0,
     paramPropMutations: 0, maxDestructureWidth: 0, constObjMutations: 0,
     thisMutations: 0, maxParamCount: 0, importMethodCalls: 0,
+    typeImports: 0, reExports: 0, callbacks: 0,
   };
 }
 
@@ -119,7 +120,7 @@ const SUM_KEYS = [
   'fanOut', 'exports', 'letCount', 'mutations', 'functions', 'templateLiteralLOC',
   'moduleLets', 'moduleMutations', 'closureLets', 'closureMutations',
   'paramPropMutations', 'constObjMutations',
-  'thisMutations', 'importMethodCalls',
+  'thisMutations', 'importMethodCalls', 'typeImports', 'reExports', 'callbacks',
 ];
 const MAX_KEYS = [
   'maxFnLength', 'maxNesting', 'maxFnComplexity', 'maxFnNesting',
@@ -158,6 +159,15 @@ function isLocalCodeImport(src) {
   // Skip asset imports (css, json, svg, ...) — only code modules count
   // toward fan-out. Extensionless specifiers are assumed to be code.
   return CODE_EXT_RE.test(src) || !HAS_EXT_RE.test(src);
+}
+
+// `import type { A }` and `import { type A, type B }` bind nothing at runtime: a
+// contract the compiler checks, not a module the file runs. Counted in fan-out,
+// weighted a quarter of a value import.
+function isTypeOnlyImport(node) {
+  if (node.importKind === 'type') return true;
+  const specs = node.specifiers || [];
+  return specs.length > 0 && specs.every((s) => s.importKind === 'type');
 }
 
 export function analyzeAST(ast) {
@@ -221,24 +231,34 @@ export function analyzeAST(ast) {
     }
   }
 
+  // A function written inline as a call argument or a JSX attribute is a
+  // callback: part of the statement it sits in, not a unit anyone navigates to.
+  function callbackKey(node) {
+    if (node.type === 'CallExpression' || node.type === 'NewExpression') return 'arguments';
+    if (node.type === 'JSXExpressionContainer') return 'expression';
+    return null;
+  }
+
   function visitChildren(node, depth, fnNesting, fnInfo, inTpl) {
+    const cbKey = callbackKey(node);
     for (const key of Object.keys(node)) {
       if (key === 'type' || key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
       if (TYPE_SPACE_KEYS.has(key)) continue;
       const child = node[key];
+      const asCallback = key === cbKey;
       if (Array.isArray(child)) {
         for (const item of child) {
           if (item && typeof item === 'object' && item.type) {
-            walk(item, depth, fnNesting, fnInfo, inTpl);
+            walk(item, depth, fnNesting, fnInfo, inTpl, asCallback);
           }
         }
       } else if (child && typeof child === 'object' && child.type) {
-        walk(child, depth, fnNesting, fnInfo, inTpl);
+        walk(child, depth, fnNesting, fnInfo, inTpl, asCallback);
       }
     }
   }
 
-  function walk(node, depth, fnNesting, fnInfo, inTpl) {
+  function walk(node, depth, fnNesting, fnInfo, inTpl, asCallback = false) {
     if (NESTING_NODES.has(node.type)) {
       depth++;
       fnNesting++;
@@ -273,6 +293,7 @@ export function analyzeAST(ast) {
         if (isLocalCodeImport(src)) {
           m.fanOut++;
           m.imports.push(src);
+          if (isTypeOnlyImport(node)) m.typeImports++;
         }
         for (const spec of node.specifiers || []) {
           if (spec.local && spec.local.name) importedNames.add(spec.local.name);
@@ -291,13 +312,20 @@ export function analyzeAST(ast) {
             m.exports++; // function, class, interface, type alias, enum, namespace
           }
         }
-        if (node.specifiers) m.exports += node.specifiers.length;
+        if (node.specifiers) {
+          m.exports += node.specifiers.length;
+          if (node.source) m.reExports += node.specifiers.length; // export { x } from './y': a pointer
+        }
         break;
       }
 
       case 'ExportDefaultDeclaration':
+        m.exports++;
+        break;
+
       case 'ExportAllDeclaration':
         m.exports++;
+        m.reExports++;
         break;
 
       case 'VariableDeclaration': {
@@ -349,6 +377,7 @@ export function analyzeAST(ast) {
       case 'FunctionExpression':
       case 'ArrowFunctionExpression': {
         m.functions++;
+        if (asCallback) m.callbacks++;
         if (node.params.length > m.maxParamCount) m.maxParamCount = node.params.length;
         const fnLength = node.loc.end.line - node.loc.start.line + 1;
         if (fnLength > m.maxFnLength) m.maxFnLength = fnLength;

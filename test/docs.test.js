@@ -234,7 +234,7 @@ describe('docs CLI', () => {
     const checked = run(dir, '--check');
     expect(checked.code).toBe(1);
     expect(checked.err).toContain('CLAUDE.md');
-    expect(checked.err).toContain('exceeded the delta threshold');
+    expect(checked.err).toContain('failed the check at +0 over baseline');
   });
 
   test('--agent includes a context-docs section', () => {

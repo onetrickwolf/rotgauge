@@ -1,6 +1,6 @@
 // Output: the three tables, the --agent markdown summary, and --json entries.
 
-import { dominantSignals } from './score.js';
+import { dominantSignals, YELLOW, RED } from './score.js';
 import { docSignals } from './docs.js';
 import { GLANCE_COMMITS, TINY_COMMIT_LINES } from './history.js';
 
@@ -21,8 +21,10 @@ export function toJSONEntry(r, baseline) {
     templateLiteralLOC: r.templateLiteralLOC,
     effectiveLOC: Math.max(0, r.loc - r.templateLiteralLOC),
     fanOut: r.fanOut,
+    typeImports: r.typeImports,
     fanIn: r.fanIn,
     exports: r.exports,
+    reExports: r.reExports,
     moduleLets: r.moduleLets,
     moduleMutations: r.moduleMutations,
     closureLets: r.closureLets,
@@ -37,6 +39,7 @@ export function toJSONEntry(r, baseline) {
     commentLines: r.commentLines,
     commentRatio: Math.round(r.commentRatio * 1000) / 1000,
     functions: r.functions,
+    callbacks: r.callbacks,
     maxFnLength: r.maxFnLength,
     maxFnComplexity: Math.round(r.maxFnComplexity),
     maxFnNesting: r.maxFnNesting,
@@ -162,7 +165,7 @@ function paint(s, code) {
 
 // Severity bands: >=60 look-at-this red, >=40 drifting yellow, else green.
 function scoreCode(score) {
-  return score >= 60 ? '31' : score >= 40 ? '33' : '32';
+  return score >= RED ? '31' : score >= YELLOW ? '33' : '32';
 }
 
 function deltaCode(s) {

@@ -9,6 +9,7 @@ import { scanDocs } from './docs.js';
 import { applyDocBudgets, docBudgetFailures } from './budgets.js';
 import { analyzeGitHistory, HISTORY_WINDOW, GLANCE_COMMITS, TINY_COMMIT_LINES } from './history.js';
 import { CLOSURE_FN_LINES } from './metrics.js';
+import { checkFinding } from './score.js';
 import {
   printTable, printDocsTable, printHistoryTable, printAgentOutput, reportFooter, toJSONEntry, toDocJSONEntry,
 } from './output.js';
@@ -72,7 +73,8 @@ Flags:
   --no-docs          Skip markdown docs (context-weight) analysis
   --no-history       Skip git history (agent-glance cost) analysis
   --save-baseline    Write ${BASELINE_FILE} with current scores
-  --check [n]        Exit 1 if any file's score rose more than n over baseline (default 0)
+  --check [n]        Exit 1 if a code file turned yellow or red, or a yellow/red file
+                     (or any doc) rose more than n over baseline (default 0)
   --exempt <globs>   Comma-separated globs --check skips (still scored, no baseline entry)
   -q, --quiet        No tables, only --check results and exemption notes
   -v, --version      Print version
@@ -96,6 +98,7 @@ Naming a skipped directory as a path still scans it.
 
 Scores: green under 40, yellow from 40, red from 60. Around 60 a file would
 benefit from extraction. Shared mutable state carries the heaviest weights.
+--check lets a green file grow; turning yellow or red fails by the whole rise.
 
 Code columns:
   LOC / TplLOC         Non-blank non-comment lines / lines inside big template literals (discounted)
@@ -223,19 +226,20 @@ export function main() {
     let failures = 0;
     let exemptCount = 0;
     const exemptOver = [];
+    const docNames = new Set(docResults.map((d) => d.name));
     for (const r of everything) {
       const exempt = isExempt(r.name);
       if (exempt) exemptCount++;
       const base = baseline[r.name];
       if (!base) continue; // new files don't count as failure
-      const delta = r.score - base.score;
-      if (delta > opts.checkThreshold) {
+      const finding = checkFinding(r.score, base.score, opts.checkThreshold, docNames.has(r.name));
+      if (finding) {
         if (exempt) {
-          exemptOver.push(`${r.name}: score ${r.score} is +${delta} over baseline ${base.score} (exempt)`);
+          exemptOver.push(`${r.name}: ${finding} (exempt)`);
           continue;
         }
         failures++;
-        console.error(`${r.name}: score ${r.score} is +${delta} over baseline ${base.score} (threshold ${opts.checkThreshold})`);
+        console.error(`${r.name}: ${finding}`);
       }
     }
     // Exemptions are never silent: name what the gate let through.
@@ -246,7 +250,7 @@ export function main() {
     for (const line of budgetReport.failures) console.error(line);
     if (failures > 0 || budgetReport.failures.length > 0) {
       const parts = [];
-      if (failures > 0) parts.push(`${failures} file(s) exceeded the delta threshold of ${opts.checkThreshold}`);
+      if (failures > 0) parts.push(`${failures} file(s) failed the check at +${opts.checkThreshold} over baseline`);
       if (budgetReport.failures.length > 0) parts.push(`${budgetReport.failures.length} doc budget failure(s)`);
       console.error(`\n${parts.join('; ')}.`);
       process.exit(1);

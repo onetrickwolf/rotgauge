@@ -32,7 +32,8 @@ rotgauge [paths...] [flags]
 --no-docs          Skip markdown docs
 --no-history       Skip git history
 --save-baseline    Write .rotgauge-baseline.json with current scores
---check [n]        Exit 1 if any file's score rose more than n over baseline (default 0)
+--check [n]        Exit 1 if a code file turned yellow or red, or a yellow/red file
+                   (or any doc) rose more than n over baseline (default 0)
 --exempt <globs>   Comma-separated globs --check skips (still scored, no baseline entry)
 --quiet            No tables, only --check results
 ```
@@ -43,10 +44,12 @@ rotgauge [paths...] [flags]
 
 ```sh
 rotgauge --save-baseline    # once, then commit the file
-rotgauge --check 5          # in CI: fail if any file rots more than +5
+rotgauge --check 5          # in CI: fail if a file turns yellow or red, or rots more than +5 while there
 ```
 
-A failing check names the file and the delta, then exits 1:
+The gate reads the bands. A green file may grow: the gauge calls it fine to edit, and failing every rise there turns the baseline into a ceiling every live file ends up sitting on. A file that turns yellow or red fails by its whole rise, whatever the threshold. From yellow up, rising more than the threshold fails. Docs keep the plain delta, since their scores sit low and budgets (below) cap them.
+
+A failing check names the file and the reason, then exits 1:
 
 ![rotgauge --check failing on a file that rotted +12 over baseline](docs/output-check.svg)
 
@@ -117,8 +120,8 @@ Scans `.js .jsx .ts .tsx .mjs .cjs .mts .cts .html` (inline scripts, styles, and
 | --- | --- |
 | LOC | Non-blank, non-comment source lines |
 | TplLOC | Lines inside big template literals. Discounted from size: data, not logic |
-| FanOut / FanIn | Local imports out, type-only ones included / other scanned files importing this one |
-| Exp | Exports, including exported types, interfaces, and enums |
+| FanOut / FanIn | Local imports out, a type-only import at a quarter weight / other scanned files importing this one |
+| Exp | Exports, including exported types, interfaces, and enums; a re-export (`export { x } from`) at a third |
 | MLets / MMuts | Module-scope mutable bindings (`let`/`var`, including destructured) and mutations of them |
 | CLets / CMuts | Closure state: mutable bindings declared in big (100+ line) functions. Behaves like module state |
 | COMut | Mutations of module-scope `const` objects (`scene.background = ...`) |
@@ -126,11 +129,13 @@ Scans `.js .jsx .ts .tsx .mjs .cjs .mts .cts .html` (inline scripts, styles, and
 | Lets / Muts | All mutable bindings / mutations |
 | PMut | Parameter property mutations (`state.foo = bar` where `state` is a param) |
 | DsW / MaxP | Widest destructure / most parameters. Wide interfaces |
-| Fns / FnCplx / Nest | Function count / worst function (length x nesting) / deepest control nesting |
+| Fns / FnCplx / Nest | Function count, an inline callback at a third / worst function (length x nesting) / deepest control nesting |
 | IMCalls | Method calls on imported bindings (display only) |
 | ICSS / IHnd | Inline CSS lines / inline event handlers (HTML) |
 
 **Score** blends all of that, scaled so 60 means "would benefit from extraction." Shared mutable state carries the heaviest weights. It's the strongest predictor of an AI making a wrong edit, whether it lives at module scope (MLets), trapped in a giant closure (CLets), or on a class instance (ThisM).
+
+Three things are pointers rather than units and weigh less: a type-only import (a contract the compiler checks), a re-export (a barrel line), and a callback written inline as a call argument or JSX attribute (part of its statement). At full weight they made composition roots, barrels and test files score as hubs, and extracting a seam cost more than it saved. `--json` carries the split counts as `typeImports`, `reExports` and `callbacks`.
 
 It's a smoke detector, not a judge. The score underweights some real complexity (wide config-passing surfaces) and overweights some benign patterns. Use it to decide where to look.
 

@@ -2,6 +2,11 @@
 
 Score weights can change between minor versions. Re-run `--save-baseline` after upgrading so `--check` deltas stay meaningful.
 
+## Unreleased
+
+- Three pointers weigh less than the units they passed for: a type-only import (`import type`, or every specifier `type`) counts a quarter of a value import, a re-export (`export { x } from`, `export *`) a third of an export, and a callback written inline as a call argument or JSX attribute a third of a function. Composition roots, barrels and test files stop scoring as hubs, and extracting a seam no longer costs more than it saves. `--json` carries `typeImports`, `reExports` and `callbacks`. Scores only move down, so a baseline that only lowers entries absorbs the upgrade; otherwise re-run `--save-baseline`.
+- `--check` reads the bands. A green code file may grow; one that turns yellow or red fails by its whole rise, whatever the threshold; from yellow up, rising more than the threshold fails. Docs keep the plain delta. The failure names the band. On a 938-file TypeScript repo the old rule had 75 files within one edit of the +5 gate, 69 of them green; the band rule leaves six.
+
 ## 0.8.0 (2026-09-16)
 
 - `.rotgauge.json` gains `"docs"`: absolute doc budgets that `--check` enforces on top of the delta. `allow` globs say where docs may live, `budgets` cap estimated tokens per glob (first match wins), `totalTokens` caps the scanned set. A new doc has no baseline entry and slipped past the delta gate; a cap catches it. The docs table gains a Budget column, `--json` carries `allowed` / `budgetTokens` / `overBudget`, `--agent` names the findings, and exempt docs are named rather than gated. Scores are unchanged; no rebaseline needed.

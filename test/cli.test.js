@@ -21,7 +21,8 @@ function fixture(files) {
 }
 
 const SIMPLE = 'export const x = 1;\n';
-const COMPLEX = `
+// Green (under 40): module state, but not much of it.
+const GROWN = `
 import { a } from './lib.js';
 let s1 = 0; let s2 = 0; let s3 = 0;
 export function f(p1, p2, p3, p4, p5, p6) {
@@ -29,6 +30,17 @@ export function f(p1, p2, p3, p4, p5, p6) {
 }
 export function g() { s1 = 9; s2 = 8; s3 = 7; }
 `;
+// Yellow (40 to 59): ten module lets, each mutated twice.
+const COMPLEX = `
+import { a } from './lib.js';
+let s1 = 0; let s2 = 0; let s3 = 0; let s4 = 0; let s5 = 0; let s6 = 0; let s7 = 0; let s8 = 0; let s9 = 0; let s10 = 0;
+export function f(p1, p2, p3, p4, p5, p6) {
+  if (p1) { if (p2) { if (p3) { for (const x of p4) { s1 = x; s2 += 1; s3 = s1 + s2; s4 = s3; s5 = s4; s6 = s5; s7 = s6; s8 = s7; s9 = s8; s10 = s9; } } } }
+}
+export function g() { s1 = 9; s2 = 8; s3 = 7; s4 = 6; s5 = 5; s6 = 4; s7 = 3; s8 = 2; s9 = 1; s10 = 0; }
+`;
+// COMPLEX plus one more let and two mutations: about three points higher.
+const COMPLEX_PLUS = COMPLEX.replace('let s10 = 0;', 'let s10 = 0; let s11 = 0;').replace('s10 = 0; }', 's10 = 0; s11 = 1; s11 = 2; }');
 
 test('.jsx files are discovered and analyzed', () => {
   const dir = fixture({
@@ -60,15 +72,31 @@ test('nothing analyzable exits non-zero', () => {
 });
 
 test('--check followed by a file path still enforces threshold 0', () => {
-  const dir = fixture({ 'main.js': SIMPLE });
+  const dir = fixture({ 'main.js': COMPLEX });
   expect(run(dir, '--save-baseline').code).toBe(0);
-  writeFileSync(join(dir, 'main.js'), COMPLEX);
-  // regression is caught even with a path right after --check
+  writeFileSync(join(dir, 'main.js'), COMPLEX_PLUS);
+  // a yellow file's small rise is caught even with a path right after --check
   const checked = run(dir, '--check', 'main.js');
   expect(checked.code).toBe(1);
-  expect(checked.err).toContain('exceeded the delta threshold');
+  expect(checked.err).toContain('failed the check at +0 over baseline');
+  expect(checked.err).toContain('(threshold 0, yellow)');
   // and a generous numeric threshold still passes
   expect(run(dir, '--check', '999', 'main.js').code).toBe(0);
+});
+
+test('--check reads the bands: a green file may grow, turning yellow fails by the whole rise', () => {
+  const dir = fixture({ 'main.js': SIMPLE });
+  expect(run(dir, '--save-baseline', '--no-history').code).toBe(0);
+  writeFileSync(join(dir, 'main.js'), GROWN);
+  const grown = run(dir, '--check', '--no-history');
+  expect(grown.code).toBe(0);
+  expect(grown.out).toContain('rotgauge --check: clean');
+  writeFileSync(join(dir, 'main.js'), COMPLEX);
+  const yellow = run(dir, '--check', '999', '--no-history');
+  expect(yellow.code).toBe(1);
+  expect(yellow.err).toContain('main.js: score ');
+  expect(yellow.err).toContain('turned yellow');
+  expect(yellow.err).toContain('which was green');
 });
 
 test('--check without a baseline exits with guidance', () => {
@@ -138,7 +166,7 @@ test('--check counts docs too: a markdown file that balloons fails the gate', ()
   const r = run(dir, '--check', '--no-history');
   expect(r.code).toBe(1);
   expect(r.err).toContain('notes.md');
-  expect(r.err).toContain('exceeded the delta threshold');
+  expect(r.err).toContain('failed the check at +0 over baseline');
 });
 
 test('--exempt skips a file over the threshold and names it instead of failing', () => {

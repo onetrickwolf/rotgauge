@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'bun:test';
 import {
   parseArgs, makeExemptMatcher, analyzeSource, analyzeHTML, computeScore, emptyMetrics,
-  dominantSignals, dialectFor, CLOSURE_FN_LINES,
+  dominantSignals, dialectFor, CLOSURE_FN_LINES, checkFinding, scoreBand,
 } from '../rotgauge.js';
 
 describe('parseArgs', () => {
@@ -333,5 +333,76 @@ describe('TypeScript as written (no transpile)', () => {
     expect(dialectFor('a.d.ts')).toBe('dts');
     expect(dialectFor('a.tsx')).toBe('tsx');
     for (const f of ['a.js', 'a.jsx', 'a.mjs', 'a.cjs']) expect(dialectFor(f)).toBe('js');
+  });
+});
+
+describe('pointers, not units', () => {
+  test('type-only imports count toward fan-out and are told apart', () => {
+    const m = analyzeSource(`
+      import type { A } from './a';
+      import { type B, type C } from './b';
+      import { d, type D } from './d';
+      import e from './e';
+      import type F from 'lib';
+    `, { dialect: 'ts' });
+    expect(m.fanOut).toBe(4);
+    expect(m.typeImports).toBe(2);
+  });
+
+  test('re-exports count as exports and are told apart', () => {
+    const m = analyzeSource(`
+      export { x, y } from './x';
+      export * from './y';
+      export type { Z } from './z';
+      export const own = 1;
+      export default own;
+    `, { dialect: 'ts' });
+    expect(m.exports).toBe(6);
+    expect(m.reExports).toBe(4);
+  });
+
+  test('inline callbacks are told apart from declared, assigned and method functions', () => {
+    const m = analyzeSource(`
+      function declared() {}
+      const assigned = () => 1;
+      class K { method() { return [1].map((v) => v * 2); } }
+      const o = { method() {}, prop: function () {} };
+      el.addEventListener('x', function () {});
+      new Promise((resolve) => resolve());
+      const C = () => <div onClick={() => 1}>{[1].map((i) => <b key={i} />)}</div>;
+      const curried = () => () => 1;
+    `, { dialect: 'tsx' });
+    expect(m.functions).toBe(13);
+    expect(m.callbacks).toBe(5);
+  });
+
+  test('the discounts score lower than the units they replace', () => {
+    const unit = emptyMetrics(), pointer = emptyMetrics();
+    Object.assign(unit, { loc: 10, commentRatio: 0.2, fanIn: 0, fanOut: 4, exports: 6, functions: 9 });
+    Object.assign(pointer, { loc: 10, commentRatio: 0.2, fanIn: 0, fanOut: 4, typeImports: 4, exports: 6, reExports: 6, functions: 9, callbacks: 9 });
+    expect(computeScore(unit)).toBe(Math.round((4 * 8 + 6 * 3 + 9 * 3 + 1.5) / 8));
+    expect(computeScore(pointer)).toBe(Math.round((4 * 2 + 6 * 1 + 9 * 1 + 1.5) / 8));
+  });
+});
+
+describe('checkFinding', () => {
+  test('bands', () => {
+    expect(scoreBand(39)).toBe('green');
+    expect(scoreBand(40)).toBe('yellow');
+    expect(scoreBand(60)).toBe('red');
+  });
+
+  test('green code may grow; turning yellow or red fails; yellow and red hold the threshold', () => {
+    expect(checkFinding(39, 1, 0)).toBeNull();
+    expect(checkFinding(40, 39, 5)).toContain('turned yellow');
+    expect(checkFinding(61, 45, 99)).toContain('turned red');
+    expect(checkFinding(45, 41, 5)).toBeNull();
+    expect(checkFinding(47, 41, 5)).toContain('+6 over baseline 41');
+    expect(checkFinding(30, 45, 0)).toBeNull();
+  });
+
+  test('docs keep the plain delta', () => {
+    expect(checkFinding(3, 1, 1, true)).toContain('+2 over baseline 1');
+    expect(checkFinding(2, 1, 1, true)).toBeNull();
   });
 });
