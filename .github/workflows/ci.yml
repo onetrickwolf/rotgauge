@@ -12,7 +12,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun test
       # rotgauge gates itself: a file that rots more than +5 over the committed
-      # baseline fails the build. Re-run --save-baseline for deliberate moves.
+      # baseline fails the build. --ratchet tightens the baseline after a cleanup.
       - run: bun rotgauge.js --check 5 --quiet
       # The same gate under Node: rotgauge has no runtime-specific code paths.
       - run: node --version && node rotgauge.js --check 5 --quiet

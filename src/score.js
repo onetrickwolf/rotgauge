@@ -49,13 +49,21 @@ export function scoreBand(score) {
 }
 const BAND_RANK = { green: 0, yellow: 1, red: 2 };
 
-// What --check holds against a file with a baseline entry, or null when it
-// passes. A green code file may grow: the gauge calls it fine to edit, and
-// failing every rise there turns the baseline into a ceiling every live file
-// ends up sitting on. Turning yellow or red fails by the whole rise, whatever
-// the threshold; from yellow up, rising more than the threshold fails. Docs
-// keep the plain delta: their scores sit low, and budgets cap them.
+// What --check holds against a file, or null when it passes. A green code
+// file may grow: the gauge calls it fine to edit, and failing every rise there
+// turns the baseline into a ceiling every live file ends up sitting on. Turning
+// yellow or red fails by the whole rise, whatever the threshold; from yellow
+// up, rising more than the threshold fails. A file with no baseline entry
+// (base null) is held to the same bands as if it were born green: a new green
+// file costs nothing, one born yellow or red is a finding. The old rule let
+// new files in free, and a repo could rot by birth. Docs keep the plain delta:
+// their scores sit low, budgets cap them, and a new doc is the budgets' to catch.
 export function checkFinding(score, base, threshold, isDoc = false) {
+  if (base === null || base === undefined) {
+    if (isDoc) return null;
+    const now = scoreBand(score);
+    return now === 'green' ? null : `score ${score} is ${now} with no baseline entry`;
+  }
   const delta = score - base;
   if (isDoc) return delta > threshold ? `score ${score} is +${delta} over baseline ${base} (threshold ${threshold})` : null;
   const was = scoreBand(base), now = scoreBand(score);

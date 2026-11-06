@@ -1,12 +1,12 @@
 {
-  "src/metrics.js": {
-    "score": 42
-  },
   "src/cli.js": {
     "score": 41
   },
+  "src/metrics.js": {
+    "score": 42
+  },
   "src/output.js": {
-    "score": 41
+    "score": 34
   },
   "src/docs.js": {
     "score": 28
@@ -20,17 +20,29 @@
   "src/score.js": {
     "score": 14
   },
+  "src/check.js": {
+    "score": 12
+  },
   "src/history.js": {
-    "score": 13
+    "score": 12
   },
   "scripts/screenshots.js": {
-    "score": 11
+    "score": 10
+  },
+  "src/init.js": {
+    "score": 10
+  },
+  "src/budgets.js": {
+    "score": 9
   },
   "src/files.js": {
     "score": 9
   },
+  "src/ratchet.js": {
+    "score": 8
+  },
   "rotgauge.js": {
-    "score": 6
+    "score": 5
   },
   "README.md": {
     "score": 6

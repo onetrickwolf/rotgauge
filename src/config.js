@@ -1,7 +1,8 @@
 // Repo-level settings: the baseline file and .rotgauge.json, which carries
-// exemptions (files the delta gate does not track), extra skipped directories
-// and doc budgets (absolute caps the delta gate cannot express), so none of
-// them has to live on the command line.
+// exemptions (files the delta gate does not track), extra skipped directories,
+// extra paths to include (a dot-directory or a skipped one the scan should
+// still cover) and doc budgets (absolute caps the delta gate cannot express),
+// so none of them has to live on the command line.
 
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
@@ -46,7 +47,7 @@ export function makeExemptMatcher(globs) {
 
 export function loadConfig(cwd) {
   const path = resolve(cwd, CONFIG_FILE);
-  if (!existsSync(path)) return { exempt: [], skip: [], docs: null };
+  if (!existsSync(path)) return { exempt: [], skip: [], include: [], docs: null };
   let raw;
   try {
     raw = JSON.parse(readFileSync(path, 'utf-8'));
@@ -54,7 +55,7 @@ export function loadConfig(cwd) {
     throw new Error(`${CONFIG_FILE}: not valid JSON (${e.message})`);
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`${CONFIG_FILE}: expected a JSON object`);
-  const known = ['exempt', 'skip', 'docs'];
+  const known = ['exempt', 'skip', 'include', 'docs'];
   for (const key of Object.keys(raw)) {
     if (!known.includes(key)) throw new Error(`${CONFIG_FILE}: unknown key "${key}" (known: ${known.join(', ')})`);
   }
@@ -68,23 +69,35 @@ export function loadConfig(cwd) {
   if (!Array.isArray(skip) || !skip.every((d) => typeof d === 'string' && d.trim() !== '' && !/[\\/]/.test(d))) {
     throw new Error(`${CONFIG_FILE}: "skip" must be an array of directory names (no slashes), e.g. ["archive", "legacy"]`);
   }
-  return { exempt: exempt.map((g) => g.trim()), skip: skip.map((d) => d.trim()), docs: parseDocsConfig(raw.docs) };
+  // Include entries are paths from the working directory, scanned on every
+  // run as if named on the command line: the way to cover a dot-directory
+  // (`.agents/skills`) or a skipped one (`test`) without every command saying so.
+  const include = raw.include ?? [];
+  if (!Array.isArray(include) || !include.every((p) => typeof p === 'string' && p.trim() !== '')) {
+    throw new Error(`${CONFIG_FILE}: "include" must be an array of paths, e.g. [".agents/skills"]`);
+  }
+  return {
+    exempt: exempt.map((g) => g.trim()), skip: skip.map((d) => d.trim()), include: include.map((p) => p.trim()),
+    docs: parseDocsConfig(raw.docs),
+  };
 }
 
 // --- Doc budgets (.rotgauge.json "docs") ---
 //
 //   { "docs": { "allow": ["README.md", "docs/**"],
 //               "budgets": [{ "match": "AGENTS.md", "tokens": 1500 }, { "match": "**/README.md", "tokens": 900 }],
-//               "totalTokens": 12000 } }
+//               "totalTokens": 12000, "ratchet": true } }
 //
 // Every key is optional. `allow` globs say where docs may live (a scanned doc
 // outside them fails --check); `budgets` cap estimated tokens per glob, first
 // match wins; `totalTokens` caps the whole scanned set. Absolute, not deltas:
-// a new file has no baseline entry, so only a cap can catch it.
+// a new file has no baseline entry, so only a cap can catch it. `ratchet`
+// makes `totalTokens` a record rather than a ceiling: --ratchet lowers it to
+// the current total and nothing raises it but a hand edit.
 function parseDocsConfig(raw) {
   if (raw === undefined) return null;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`${CONFIG_FILE}: "docs" must be an object`);
-  const known = ['allow', 'budgets', 'totalTokens'];
+  const known = ['allow', 'budgets', 'totalTokens', 'ratchet'];
   for (const key of Object.keys(raw)) {
     if (!known.includes(key)) throw new Error(`${CONFIG_FILE}: unknown key "docs.${key}" (known: ${known.join(', ')})`);
   }
@@ -102,9 +115,12 @@ function parseDocsConfig(raw) {
   if (totalTokens !== null && !(Number.isFinite(totalTokens) && totalTokens > 0)) {
     throw new Error(`${CONFIG_FILE}: "docs.totalTokens" must be a positive number`);
   }
+  const ratchet = raw.ratchet ?? false;
+  if (typeof ratchet !== 'boolean') throw new Error(`${CONFIG_FILE}: "docs.ratchet" must be true or false`);
   return {
     allow: allow ? allow.map((g) => g.trim()) : null,
     budgets: budgets.map((b) => ({ match: b.match.trim(), tokens: b.tokens })),
     totalTokens,
+    ratchet,
   };
 }

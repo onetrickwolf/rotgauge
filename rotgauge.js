@@ -9,7 +9,8 @@
 // lives in src/, one module per concern: cli (flags and the run), config
 // (.rotgauge.json), files (discovery), metrics (the AST walk), score, scan
 // (the code pipeline), docs (markdown context weight), budgets (doc caps),
-// history (git glance cost), output (tables, --agent, --json).
+// check (the gate and its advice), ratchet (the baseline only tightens), init
+// (project setup), history (git glance cost), output (tables, --agent, --json).
 
 import { realpathSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -25,6 +26,9 @@ export * from './src/docs.js';
 export * from './src/budgets.js';
 export * from './src/history.js';
 export * from './src/output.js';
+export * from './src/check.js';
+export * from './src/ratchet.js';
+export * from './src/init.js';
 
 // Run when invoked as a command (directly, through a bin symlink, npx, or
 // bunx); stay quiet when imported as a module. Works the same on Node and Bun.

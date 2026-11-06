@@ -175,11 +175,34 @@ function deltaCode(s) {
   return '2';
 }
 
-export function printTable(results, baseline) {
+// The default report is the short one: the rows worth a look, which on a big
+// repo is a screen rather than a thousand green lines an agent pays to read.
+// A table under FULL_BELOW rows is already short and prints whole. Past that,
+// code shows every yellow and red file (the top ten when there are none) and
+// docs show the top ten plus any that is stale, over budget, out of place or
+// auto-loaded. --all prints every row. Totals still cover every file.
+const FULL_BELOW = 30;
+const SHOWN = 10;
+function shownCode(results, all) {
+  if (all || results.length < FULL_BELOW) return results;
+  const warm = results.filter((r) => r.score >= YELLOW);
+  return warm.length > 0 ? warm : results.slice(0, SHOWN);
+}
+function shownDocs(docResults, all) {
+  if (all || docResults.length < FULL_BELOW) return docResults;
+  const flagged = (d) => d.staleRefs > 0 || d.autoLoaded || d.overBudget || d.allowed === false;
+  return docResults.filter((d, i) => i < SHOWN || flagged(d));
+}
+function hiddenNote(shown, total, what) {
+  return shown < total ? ` ${total - shown} ${what} not shown (--all prints every row).` : '';
+}
+
+export function printTable(results, baseline, { all = true } = {}) {
   const headers = ['File', 'LOC', 'TplLOC', 'FanOut', 'FanIn', 'Exp', 'MLets', 'MMuts', 'CLets', 'CMuts', 'COMut', 'ThisM', 'Lets', 'Muts', 'PMut', 'DsW', 'MaxP', 'Cmt%', 'Fns', 'FnCplx', 'Nest', 'IMCalls', 'ICSS', 'IHnd', 'Score'];
   if (baseline) headers.push('Delta');
 
-  const rows = results.map((r) => {
+  const shown = shownCode(results, all);
+  const rows = shown.map((r) => {
     const row = [
       r.name, r.loc, r.templateLiteralLOC, r.fanOut, r.fanIn, r.exports,
       r.moduleLets, r.moduleMutations, r.closureLets, r.closureMutations,
@@ -247,15 +270,16 @@ export function printTable(results, baseline) {
   if (baseline) totals.push('');
   console.log(formatRow(totals, true));
 
-  console.log(`\n ${results.length} files analyzed. Score is avg, FnCplx/Nest/MaxP/DsW are max across all files.`);
+  console.log(`\n ${results.length} files analyzed. Score is avg, FnCplx/Nest/MaxP/DsW are max across all files.${hiddenNote(shown.length, results.length, 'green file(s)')}`);
 }
 
-export function printDocsTable(docResults, baseline, budgets = null) {
+export function printDocsTable(docResults, baseline, budgets = null, { all = true } = {}) {
   const headers = ['Doc', 'LOC', 'FenceL', 'Words', '~Tokens', 'Refs', 'Stale', 'Mirror', 'Auto', 'Score'];
   if (budgets) headers.splice(5, 0, 'Budget');
   if (baseline) headers.push('Delta');
 
-  const rows = docResults.map((r) => {
+  const shown = shownDocs(docResults, all);
+  const rows = shown.map((r) => {
     const row = [
       r.name, r.loc, r.fenceLOC, r.words, r.tokens,
       r.refs, r.staleRefs, r.mirrorRefs, r.autoLoaded ? 'yes' : '', r.score,
@@ -308,9 +332,11 @@ export function printDocsTable(docResults, baseline, budgets = null) {
   for (const row of rows) console.log(formatRow(row, true));
   console.log(rule);
   if (budgets && budgets.totalBudget !== null) {
-    const line = ` Docs total ~${budgets.totalTokens} tokens of the ${budgets.totalBudget}-token budget`;
+    const line = ` Docs total ~${budgets.totalTokens} tokens of the ${budgets.totalBudget}-token ${budgets.ratchet ? 'ratchet' : 'budget'}`;
     console.log(budgets.overTotal ? paint(line + ' !', '31') : line);
   }
+  const note = hiddenNote(shown.length, docResults.length, 'doc(s)');
+  if (note) console.log(note);
 }
 
 export function printHistoryTable(h) {

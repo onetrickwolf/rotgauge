@@ -14,44 +14,56 @@ The name: context rot builds up quietly until an edit goes wrong. This is the bu
 npm install -g rotgauge   # or: npx rotgauge, bunx rotgauge
 rotgauge                  # scan the current directory
 rotgauge src/ app.html    # or specific files and directories
+rotgauge --init           # set a project up: config, AGENTS.md block, baseline
 ```
 
 Runs on Node 20+ or [Bun](https://bun.sh). Built for JavaScript and TypeScript, plus inline scripts in HTML. The docs and git history gauges don't care about language, so a Python or Go repo still gets the CLAUDE.md weight, stale-ref, and history checks.
 
 ![rotgauge output: code, docs, and git history tables with severity-colored scores](docs/output-table.svg)
 
-Scores are green under 40, yellow from 40, red from 60. Red means look here first.
+Scores are green under 40, yellow from 40, red from 60. Red means look here first. The default report shows the rows worth a look (every yellow and red file; the heaviest, stale or auto-loaded docs); `--all` prints every row.
 
 ## Usage
 
 ```
 rotgauge [paths...] [flags]
 
+--all              Every row; the default report shows the rows worth a look
 --json             JSON output
 --agent            Markdown summary for pasting into agent context (CLAUDE.md etc.)
 --no-docs          Skip markdown docs
 --no-history       Skip git history
---save-baseline    Write .rotgauge-baseline.json with current scores
---check [n]        Exit 1 if a code file turned yellow or red, or a yellow/red file
-                   (or any doc) rose more than n over baseline (default 0)
+--init             Set a project up (config, AGENTS.md block, baseline); rerun after an upgrade
+--ratchet          Tighten .rotgauge-baseline.json: add, lower, drop, never raise
+--save-baseline    Write .rotgauge-baseline.json with every current score (accepts every rise)
+--check [n]        Exit 1 if a code file turned yellow or red (or was born so), or a yellow/red
+                   file (or any doc) rose more than n over baseline (default 0)
 --exempt <globs>   Comma-separated globs --check skips (still scored, no baseline entry)
 --quiet            No tables, only --check results
 ```
 
 `rotgauge --help` explains every column.
 
+### Setting up
+
+`rotgauge --init` does the setup in one command and is safe to run again after an upgrade. It writes a `.rotgauge.json` with defaults when there is none (AGENTS.md and CLAUDE.md capped at 1,500 tokens, the docs total ratcheted, below), puts a two-sentence block into AGENTS.md (or CLAUDE.md, or a new AGENTS.md) between markers a rerun refreshes, and runs `--ratchet` for the baseline. A config it finds is kept as it is; the run names what the defaults would add. The block is all the rules file carries: how to run the gate, and that the baseline only tightens. Every other rule arrives with the failure that trips it.
+
 ### As a CI gate
 
 ```sh
-rotgauge --save-baseline    # once, then commit the file
+rotgauge --ratchet          # once, then commit the baseline; again after every cleanup
 rotgauge --check 5          # in CI: fail if a file turns yellow or red, or rots more than +5 while there
 ```
 
-The gate reads the bands. A green file may grow: the gauge calls it fine to edit, and failing every rise there turns the baseline into a ceiling every live file ends up sitting on. A file that turns yellow or red fails by its whole rise, whatever the threshold. From yellow up, rising more than the threshold fails. Docs keep the plain delta, since their scores sit low and budgets (below) cap them.
+The gate reads the bands. A green file may grow: the gauge calls it fine to edit, and failing every rise there turns the baseline into a ceiling every live file ends up sitting on. A file that turns yellow or red fails by its whole rise, whatever the threshold. From yellow up, rising more than the threshold fails. A file with no baseline entry is held to the same bands as if it were born green, so a new green file costs nothing and one born yellow or red fails until a seam comes out of it or `--ratchet` records it. Docs keep the plain delta, since their scores sit low and budgets (below) cap them.
 
-A failing check names the file and the reason, then exits 1:
+A failing check names each file and the reason, then says once per kind of failure what to do about it, then exits 1:
 
-![rotgauge --check failing on a file that rotted +12 over baseline](docs/output-check.svg)
+![rotgauge --check failing on a file that turned yellow, with the advice that follows](docs/output-check.svg)
+
+### The baseline only tightens
+
+`--ratchet` adds every scored file that has no entry at its current score, lowers an entry whose file now scores below it, drops an entry whose file is no longer scored, and never raises one. Run it after a cleanup, not before a refactor: lowering is what widens the gate's margin, and a run before the work locks the old score in as the ceiling. `--save-baseline` is the reset: it accepts every current score, in a diff a reviewer sees.
 
 ### For your agent
 
@@ -83,7 +95,11 @@ rotgauge never descends into dependency, build, or test directories (`node_modul
 { "skip": ["archive", "legacy"] }
 ```
 
-Naming a skipped directory on the command line still scans it (`rotgauge test/`).
+Naming a skipped directory on the command line still scans it (`rotgauge test/`). To cover one on every run without every command saying so, or a dot-directory such as `.agents/skills`, list it under `include`:
+
+```json
+{ "include": [".agents/skills"] }
+```
 
 ## Doc budgets
 
@@ -100,7 +116,8 @@ absolute caps in `.rotgauge.json` that `--check` enforces on top of the delta:
       { "match": "docs/decisions/*.md", "tokens": 600 },
       { "match": "**/README.md", "tokens": 900 }
     ],
-    "totalTokens": 12000
+    "totalTokens": 12000,
+    "ratchet": true
   }
 }
 ```
@@ -111,6 +128,17 @@ fails. The docs table gains a Budget column, `--json` entries carry `allowed`,
 `budgetTokens` and `overBudget`, and `--agent` names the findings. Exempt docs are not
 gated but are still named, and still count toward the total. Raising a cap is an edit
 to the config that a reviewer can see, not a rebaseline.
+
+### Docs only shrink
+
+With `ratchet` on, `totalTokens` is a record rather than a ceiling: `--ratchet` writes
+the current docs total into it whenever that is lower (or the key is unset), nothing
+raises it but a hand edit, and `--check` fails any growth. Every addition to the docs is
+then a trade: trim elsewhere to add here. This is the mechanical form of "write a doc
+only to replace something that went false". The number is replaced in place, so the
+file keeps its formatting. Agents tend to document by default and a rules file that
+asks them not to is paid for on every turn; a gate that fails the growth costs nothing
+until it fires, and then says what to do.
 
 ## What it measures
 
@@ -139,7 +167,7 @@ Three things are pointers rather than units and weigh less: a type-only import (
 
 It's a smoke detector, not a judge. The score underweights some real complexity (wide config-passing surfaces) and overweights some benign patterns. Use it to decide where to look.
 
-Weights can change between minor versions. Re-run `--save-baseline` after upgrading so `--check` deltas stay meaningful.
+Weights can change between minor versions. Run `--ratchet` after upgrading so `--check` deltas stay meaningful; when weights went up, `--save-baseline` resets.
 
 ## Docs rot too
 
@@ -181,7 +209,7 @@ bun rotgauge.js --check 5   # rotgauge gates itself against the committed baseli
 bun run screenshots         # rebuild the README images from a demo project
 ```
 
-CI runs the first two, and repeats the self-check on Node. When a deliberate change moves a score, re-run `--save-baseline` and commit the result.
+CI runs the first two, and repeats the self-check on Node. After a cleanup, run `--ratchet` and commit the result; a deliberate rise takes `--save-baseline`.
 
 ## License
 

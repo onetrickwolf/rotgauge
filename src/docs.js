@@ -55,6 +55,7 @@ export function analyzeDoc(source) {
   const lineAnchors = new Map();
   const addRef = (raw) => {
     const trimmed = raw.trim();
+    if (/^[0-9a-f]{7,40}:/i.test(trimmed)) return; // `bbc5b45:docs/old.md` is history, not a live file
     const anchor = /:(\d+)$/.exec(trimmed.replace(/#[\w-]*$/, ''));
     let ref = trimmed.replace(/(#[\w-]*|(?::\d+)+)$/, '').replace(/\/+$/, '');
     if (!ref || /[\s*{}<>$"'`\\]/.test(ref)) return; // globs, placeholders, prose

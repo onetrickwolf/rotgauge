@@ -9,7 +9,7 @@
 <text x="20" y="60.3" xml:space="preserve" textLength="296" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">### Context-rot smoke test (rotgauge)</tspan></text>
 <text x="20" y="98.3" xml:space="preserve" textLength="280" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| File | Score | Dominant signals |</tspan></text>
 <text x="20" y="117.3" xml:space="preserve" textLength="160" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| --- | ---: | --- |</tspan></text>
-<text x="20" y="136.3" xml:space="preserve" textLength="624" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/game.js | 62 | module mutable state (15× typical), function count/size |</tspan></text>
+<text x="20" y="136.3" xml:space="preserve" textLength="528" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/game.js | 61 | module mutable state (15× typical), nesting |</tspan></text>
 <text x="20" y="155.3" xml:space="preserve" textLength="632" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/waves.js | 35 | module mutable state (10× typical), function count/size |</tspan></text>
 <text x="20" y="174.3" xml:space="preserve" textLength="680" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| src/renderer.js | 12 | instance state (this.*) (14× typical), function count/size |</tspan></text>
 <text x="20" y="193.3" xml:space="preserve" textLength="400" lengthAdjust="spacingAndGlyphs"><tspan fill="#d6cdbd">| index.html | 7 | fan-out, module mutable state |</tspan></text>

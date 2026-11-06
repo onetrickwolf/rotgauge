@@ -249,3 +249,10 @@ describe('docs CLI', () => {
     expect(r.out).toContain('auto-loaded every turn');
   });
 });
+
+test('a path beside a commit id is history, not a stale ref', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'rotgauge-docs-history-'));
+  writeFileSync(join(dir, 'README.md'), 'Their stubs are history at `bbc5b45:docs/decisions/0003-gone.md`; see `nope.ts` too.\n');
+  const [r] = scanDocs([join(dir, 'README.md')], dir);
+  expect(r.staleRefs).toBe(1); // only nope.ts
+});

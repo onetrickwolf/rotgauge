@@ -222,6 +222,13 @@ let held = new Set();
 let repeatTimer = 0;
 let lastKey = null;
 let bound = false;
+let combo = 0;
+let streak = 0;
+let shots = 0;
+let misses = 0;
+let lastFireAt = 0;
+let lastSteer = 0;
+let pausedLocally = false;
 
 export function bind(target) {
   if (bound) return;
@@ -230,7 +237,7 @@ export function bind(target) {
     held.add(e.key);
     lastKey = e.key;
     if (e.key === ' ') fire();
-    else if (e.key === 'p') togglePause();
+    else if (e.key === 'p') { togglePause(); pausedLocally = !pausedLocally; }
     update();
   });
   target.addEventListener('keyup', (e) => {
@@ -240,17 +247,23 @@ export function bind(target) {
 }
 
 function update() {
-  if (held.has('ArrowLeft')) steer(-1);
-  else if (held.has('ArrowRight')) steer(1);
-  else steer(0);
+  if (held.has('ArrowLeft')) { steer(-1); lastSteer = -1; }
+  else if (held.has('ArrowRight')) { steer(1); lastSteer = 1; }
+  else { steer(0); lastSteer = 0; }
   if (held.has(' ')) {
     repeatTimer++;
-    if (repeatTimer % 6 === 0) fire();
-  } else repeatTimer = 0;
+    if (repeatTimer % 6 === 0) { fire(); shots++; lastFireAt = repeatTimer; combo++; }
+  } else { repeatTimer = 0; combo = 0; }
+  if (combo > 3) streak++;
+  else if (combo === 0) { streak = 0; misses++; }
 }
 
 export function lastPressed() {
   return lastKey;
+}
+
+export function stats() {
+  return { combo, streak, shots, misses, lastFireAt, lastSteer, pausedLocally };
 }
 `;
 

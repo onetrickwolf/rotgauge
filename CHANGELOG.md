@@ -1,9 +1,17 @@
 # Changelog
 
-Score weights can change between minor versions. Re-run `--save-baseline` after upgrading so `--check` deltas stay meaningful.
+Score weights can change between minor versions. Run `--ratchet` after upgrading so `--check` deltas stay meaningful; when weights went up, `--save-baseline` resets.
 
-## Unreleased
+## 0.9.0 (2026-11-06)
 
+- `--ratchet` tightens the baseline and never loosens it: every scored file with no entry is added at its current score, an entry whose file now scores below it is lowered, an entry whose file is no longer scored is dropped, none is raised. `--save-baseline` stays the reset that accepts every current score. A project no longer needs its own "rebaselines only go down" script.
+- `--check` holds a file with no baseline entry to the bands as if it were born green: a new green file costs nothing, one born yellow or red fails until a seam is extracted or `--ratchet` records it. New files used to pass free, so a repo could rot by birth.
+- `.rotgauge.json` `docs.ratchet`: `totalTokens` becomes a record rather than a ceiling. `--ratchet` writes the current docs total into it whenever that is lower (or the key is unset), nothing raises it but a hand edit, and `--check` fails any growth. Every addition to the docs is a trade. The number is replaced in place, so the owner's formatting survives.
+- A failing `--check` ends with one line of advice per kind of failure (code, new file, doc, budget, docs total, location): what to do, said at the moment it is tripped instead of on every turn from a rules file. Doc findings name the tokens and stale refs behind the score.
+- The default report is the short one. A table under thirty rows prints whole; past that, code shows every yellow and red file and docs show the top ten plus any that is stale, over budget, out of place or auto-loaded, each table saying how many rows it left out. `--all` prints every row. On a 1,233-file repo the report went from 1,316 lines to 50.
+- `--init` sets a project up in one command and is safe to rerun after an upgrade: a `.rotgauge.json` with defaults when there is none (AGENTS.md and CLAUDE.md capped at 1,500 tokens, the docs total ratcheted), a two-sentence block in AGENTS.md (or CLAUDE.md, or a new AGENTS.md) between markers a rerun refreshes, then `--ratchet`. A config it finds is kept; the run names what the defaults would add.
+- `.rotgauge.json` `include`: paths scanned on every run as if named on the command line, for a dot-directory (`.agents/skills`) or a skipped one that the scan should still cover.
+- A doc path written beside a commit id (`bbc5b45:docs/old.md`) is history, not a stale ref.
 - Three pointers weigh less than the units they passed for: a type-only import (`import type`, or every specifier `type`) counts a quarter of a value import, a re-export (`export { x } from`, `export *`) a third of an export, and a callback written inline as a call argument or JSX attribute a third of a function. Composition roots, barrels and test files stop scoring as hubs, and extracting a seam no longer costs more than it saves. `--json` carries `typeImports`, `reExports` and `callbacks`. Scores only move down, so a baseline that only lowers entries absorbs the upgrade; otherwise re-run `--save-baseline`.
 - `--check` reads the bands. A green code file may grow; one that turns yellow or red fails by its whole rise, whatever the threshold; from yellow up, rising more than the threshold fails. Docs keep the plain delta. The failure names the band. On a 938-file TypeScript repo the old rule had 75 files within one edit of the +5 gate, 69 of them green; the band rule leaves six.
 

@@ -272,3 +272,17 @@ test('Node and Bun produce identical output', () => {
   expect(viaNode.stdout.toString()).toBe(viaBun.out);
   expect(JSON.parse(viaBun.out).find((e) => e.file === 'a.ts').moduleLets).toBe(1);
 });
+
+test('.rotgauge.json "include" scans a dot-directory or a skipped one on every run, without duplicates', () => {
+  const dir = fixture({ 'src/main.js': SIMPLE, '.agents/skills/a/SKILL.md': '# skill\n', 'test/t.js': SIMPLE });
+  const files = (...args) => JSON.parse(run(dir, '--json', '--no-history', ...args).out).map((e) => e.file);
+  expect(files()).not.toContain('.agents/skills/a/SKILL.md');
+  writeFileSync(join(dir, '.rotgauge.json'), JSON.stringify({ include: ['.agents/skills', 'test', 'src'] }));
+  const listed = files();
+  expect(listed).toContain('.agents/skills/a/SKILL.md');
+  expect(listed).toContain('test/t.js');
+  expect(listed.filter((f) => f === 'src/main.js').length).toBe(1);
+  expect(files('src')).toContain('.agents/skills/a/SKILL.md'); // included beside a named path too
+  writeFileSync(join(dir, '.rotgauge.json'), JSON.stringify({ include: 'test' }));
+  expect(run(dir, '--no-history').err).toContain('"include" must be an array of paths');
+});
